@@ -94,7 +94,8 @@ def generate_insights(df, schema: Dict, analysis_results: Dict, llm) -> str:
     # 분석 결과를 요약하여 토큰 수를 줄임
     summarized_results = {
         "메타정보": analysis_results.get("메타정보", {}),
-        "상관관계": analysis_results.get("상관관계", [])[:5]  # 상위 5개 상관관계만 포함
+        "상관관계": analysis_results.get("상관관계", [])[:5],  # 상위 5개 상관관계만 포함
+        "분석_계획": st.session_state.analysis_plan if "analysis_plan" in st.session_state else None
     }
     
     # 각 변수별 주요 통계만 포함
@@ -125,20 +126,36 @@ def generate_insights(df, schema: Dict, analysis_results: Dict, llm) -> str:
                 }
     
     # LLM 프롬프트 생성
-    prompt = f"""데이터 분석가로서, 다음 데이터 분석 결과를 바탕으로 중요한 인사이트를 도출해주세요.
+    prompt = f"""데이터 분석가로서, 다음 데이터 분석 결과와 초기 분석 계획을 바탕으로 중요한 인사이트를 도출해주세요.
 
-기본 정보:
+[초기 분석 계획]
+{summarized_results["분석_계획"]}
+
+[기본 정보]
 {json.dumps(basic_info, indent=2, ensure_ascii=False)}
 
-주요 분석 결과:
+[주요 분석 결과]
 {json.dumps(summarized_results, indent=2, ensure_ascii=False)}
 
 다음 형식으로 응답해주세요:
-1. 주요 발견사항 (3개)
-2. 개선 제안사항 (2개)
-3. 추가 분석이 필요한 부분 (1개)
+
+1. 초기 분석 계획 대비 주요 발견사항
+   - 분석 목표별 달성 여부와 핵심 발견
+   - 예상했던 결과와 실제 결과의 차이점
+   - 추가로 발견된 중요한 패턴이나 트렌드
+
+2. 비즈니스 인사이트 및 제안사항
+   - 데이터 기반 의사결정 포인트
+   - 구체적인 개선 제안사항
+   - 실행 가능한 액션 아이템
+
+3. 추가 분석 필요 영역
+   - 심층 분석이 필요한 부분
+   - 추가 데이터 수집이 필요한 영역
+   - 장기적인 모니터링이 필요한 지표
 
 각 항목은 데이터 분석 결과를 기반으로 구체적인 수치와 함께 설명해주세요.
+특히 초기 분석 계획에서 설정한 목표와 연계하여 인사이트를 도출해주세요.
 """
     
     response = llm.invoke(prompt)
