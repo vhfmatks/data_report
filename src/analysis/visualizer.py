@@ -256,13 +256,65 @@ def create_complex_visualization(df: pd.DataFrame, schema: Dict):
                        if info["data_type"] == "numeric" and col in df.columns]
         if len(numeric_cols) > 1:
             st.write("#### 수치형 변수 간 관계")
-            fig = plt.figure(figsize=(12, 8))
-            g = sns.PairGrid(df[numeric_cols])
-            g.map_diag(sns.histplot, kde=True)
-            g.map_upper(sns.scatterplot)
-            g.map_lower(sns.kdeplot)
-            plt.tight_layout()
-            display_plot("수치형 변수 상관관계 매트릭스", fig)
+            
+            # 결측치 제거
+            numeric_df = df[numeric_cols].dropna()
+            
+            # 변수명을 display_name으로 변경
+            display_names = {col: schema[col].get('display_name', col) for col in numeric_cols}
+            numeric_df = numeric_df.rename(columns=display_names)
+            display_numeric_cols = [display_names[col] for col in numeric_cols]
+            
+            try:
+                # 산점도 행렬 생성
+                fig = plt.figure(figsize=(12, 8))
+                
+                # 변수 개수에 따라 subplot 크기 조정
+                n_vars = len(display_numeric_cols)
+                for i in range(n_vars):
+                    for j in range(n_vars):
+                        plt.subplot(n_vars, n_vars, i * n_vars + j + 1)
+                        
+                        if i == j:  # 대각선: 히스토그램
+                            plt.hist(numeric_df[display_numeric_cols[i]], bins=20, density=True, alpha=0.7)
+                            sns.kdeplot(data=numeric_df[display_numeric_cols[i]], color='red', linewidth=1)
+                        else:  # 비대각선: 산점도
+                            plt.scatter(numeric_df[display_numeric_cols[j]], 
+                                      numeric_df[display_numeric_cols[i]], 
+                                      alpha=0.5)
+                            
+                        if i == n_vars-1:  # x축 레이블은 마지막 행에만
+                            plt.xlabel(display_numeric_cols[j], fontsize=8)
+                        if j == 0:  # y축 레이블은 첫 번째 열에만
+                            plt.ylabel(display_numeric_cols[i], fontsize=8)
+                            
+                        plt.xticks(fontsize=6)
+                        plt.yticks(fontsize=6)
+                
+                plt.tight_layout()
+                st.pyplot(fig)
+                plt.close()
+                
+                # 상관관계 히트맵 추가
+                st.write("#### 상관관계 히트맵")
+                corr_matrix = numeric_df.corr()
+                
+                fig, ax = plt.subplots(figsize=(10, 8))
+                sns.heatmap(corr_matrix, 
+                           annot=True, 
+                           cmap='RdYlBu_r',
+                           center=0,
+                           vmin=-1,
+                           vmax=1,
+                           fmt='.2f',
+                           ax=ax)
+                plt.title("변수 간 상관관계")
+                plt.tight_layout()
+                st.pyplot(fig)
+                plt.close()
+                
+            except Exception as e:
+                st.error(f"수치형 변수 시각화 중 오류 발생: {str(e)}")
         
         # 2. 범주형 변수들의 다중 막대 그래프
         categorical_cols = [col for col, info in schema.items() 
@@ -289,7 +341,8 @@ def create_complex_visualization(df: pd.DataFrame, schema: Dict):
                 ax.set_title(f"{schema[col].get('display_name', col)}\n상위 10개 범주")
             
             plt.tight_layout()
-            display_plot("범주형 변수 분포 비교", fig)
+            st.pyplot(fig)
+            plt.close()
         
         # 3. 시계열 데이터의 복합 트렌드 분석
         datetime_cols = [col for col, info in schema.items() 
@@ -317,7 +370,8 @@ def create_complex_visualization(df: pd.DataFrame, schema: Dict):
             
             plt.title("시계열 복합 트렌드 분석")
             plt.tight_layout()
-            display_plot("시계열 복합 트렌드", fig)
+            st.pyplot(fig)
+            plt.close()
             
     except Exception as e:
         st.error(f"복합 시각화 생성 중 오류 발생: {str(e)}")

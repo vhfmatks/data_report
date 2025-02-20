@@ -9,153 +9,239 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import streamlit as st
+import numpy as np
 
 def generate_insights(df, schema: Dict, analysis_results: Dict, llm) -> str:
     """LLM을 사용하여 데이터 분석 결과로부터 인사이트 도출"""
     
-    # 복합 시각화 생성
+    # 심층 분석 시각화
     st.write("### 📊 심층 분석 시각화")
     
     try:
-        # 1. 시계열-수치 복합 분석
+        # 1. 시계열 트렌드 및 이상치 분석
         datetime_cols = [col for col, info in schema.items() if info["data_type"] == "datetime" and col in df.columns]
         numeric_cols = [col for col, info in schema.items() if info["data_type"] == "numeric" and col in df.columns]
         
         if datetime_cols and numeric_cols:
-            st.write("#### 1️⃣ 시계열-수치 데이터 분석")
-            fig, ax1 = plt.subplots(figsize=(15, 8))
-            
-            # 주 Y축 - 첫 번째 수치형 변수
+            st.write("#### 1️⃣ 시계열 트렌드 및 이상치 분석")
             time_col = datetime_cols[0]
             num_col = numeric_cols[0]
             
-            color = 'tab:blue'
-            ax1.set_xlabel('시간')
-            ax1.set_ylabel(schema[num_col].get('display_name', num_col), color=color)
+            # 시계열 데이터 준비
+            df['Year_Month'] = pd.to_datetime(df[time_col]).dt.to_period('M')
+            monthly_stats = df.groupby('Year_Month')[num_col].agg(['mean', 'std']).reset_index()
+            monthly_stats['Year_Month'] = monthly_stats['Year_Month'].astype(str)
             
-            # 월별 평균 계산
-            monthly_data = df.groupby(pd.to_datetime(df[time_col]).dt.to_period('M'))[num_col].mean()
-            ax1.plot(monthly_data.index.astype(str), monthly_data.values, color=color, marker='o')
-            ax1.tick_params(axis='y', labelcolor=color)
+            # 이동평균 계산
+            monthly_stats['MA3'] = monthly_stats['mean'].rolling(window=3).mean()
             
-            # 보조 Y축 - 두 번째 수치형 변수 (있는 경우)
-            if len(numeric_cols) > 1:
-                ax2 = ax1.twinx()
-                num_col2 = numeric_cols[1]
-                color = 'tab:orange'
-                ax2.set_ylabel(schema[num_col2].get('display_name', num_col2), color=color)
-                monthly_data2 = df.groupby(pd.to_datetime(df[time_col]).dt.to_period('M'))[num_col2].mean()
-                ax2.plot(monthly_data2.index.astype(str), monthly_data2.values, color=color, marker='s')
-                ax2.tick_params(axis='y', labelcolor=color)
+            # 신뢰구간 계산
+            monthly_stats['Upper'] = monthly_stats['mean'] + 2 * monthly_stats['std']
+            monthly_stats['Lower'] = monthly_stats['mean'] - 2 * monthly_stats['std']
             
-            plt.title("시계열-수치 데이터 추이 분석")
+            # 차트 생성
+            fig, ax = plt.subplots(figsize=(15, 8))
+            
+            # 실제 값
+            ax.plot(monthly_stats['Year_Month'], monthly_stats['mean'], 
+                   marker='o', label='실제값', color='blue', alpha=0.7)
+            
+            # 이동평균
+            ax.plot(monthly_stats['Year_Month'], monthly_stats['MA3'], 
+                   label='3개월 이동평균', color='red', linestyle='--')
+            
+            # 신뢰구간
+            ax.fill_between(monthly_stats['Year_Month'], 
+                          monthly_stats['Lower'], monthly_stats['Upper'],
+                          alpha=0.2, color='gray', label='95% 신뢰구간')
+            
+            plt.title(f"{schema[num_col].get('display_name', num_col)} 트렌드 분석")
             plt.xticks(rotation=45)
+            plt.legend()
             plt.tight_layout()
             st.pyplot(fig)
             plt.close()
         
-        # 2. 범주-수치 복합 분석
-        categorical_cols = [col for col, info in schema.items() if info["data_type"] == "categorical" and col in df.columns]
+        # 2. 분포 및 이상치 분석
+        if numeric_cols:
+            st.write("#### 2️⃣ 분포 및 이상치 분석")
+            
+            # 주요 수치형 변수 선택
+            main_numeric = numeric_cols[0]
+            
+            # 데이터 준비
+            data = df[main_numeric].dropna()
+            
+            # 사분위수 계산
+            Q1 = data.quantile(0.25)
+            Q3 = data.quantile(0.75)
+            IQR = Q3 - Q1
+            lower_bound = Q1 - 1.5 * IQR
+            upper_bound = Q3 + 1.5 * IQR
+            
+            # 이상치 식별
+            outliers = data[(data < lower_bound) | (data > upper_bound)]
+            
+            # 바이올린 플롯 + 박스플롯 결합
+            fig, ax = plt.subplots(figsize=(12, 6))
+            
+            # 바이올린 플롯
+            sns.violinplot(data=data, ax=ax, inner=None, color='lightgray')
+            
+            # 박스플롯
+            sns.boxplot(data=data, ax=ax, width=0.2, color='white', 
+                       showfliers=False, boxprops={'zorder': 2})
+            
+            # 이상치 표시
+            if not outliers.empty:
+                ax.scatter(x=[0] * len(outliers), y=outliers, 
+                         color='red', alpha=0.5, label='이상치')
+            
+            plt.title(f"{schema[main_numeric].get('display_name', main_numeric)} 분포 및 이상치")
+            plt.legend()
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close()
+            
+            # 이상치 통계 표시
+            st.write(f"- 이상치 개수: {len(outliers):,}개 ({len(outliers)/len(data)*100:.1f}%)")
+            st.write(f"- 정상 범위: {lower_bound:,.0f} ~ {upper_bound:,.0f}")
         
-        if categorical_cols and numeric_cols:
-            st.write("#### 2️⃣ 범주-수치 데이터 분석")
+        # 3. 범주별 성과 분석
+        if numeric_cols and categorical_cols:
+            st.write("#### 3️⃣ 범주별 성과 분석")
             cat_col = categorical_cols[0]
             num_col = numeric_cols[0]
             
-            # 범주별 수치 통계
-            fig, ax = plt.subplots(figsize=(12, 6))
-            sns.boxplot(data=df, x=cat_col, y=num_col, ax=ax)
-            plt.title(f"{schema[cat_col].get('display_name', cat_col)}별 {schema[num_col].get('display_name', num_col)} 분포")
-            plt.xticks(rotation=45)
+            # 범주별 통계 계산
+            cat_stats = df.groupby(cat_col)[num_col].agg([
+                ('평균', 'mean'),
+                ('중앙값', 'median'),
+                ('표준편차', 'std'),
+                ('건수', 'size')
+            ]).round(2)
+            
+            # 상위 10개 범주 선택
+            top_categories = cat_stats.nlargest(10, '평균')
+            
+            # 다중 막대 그래프
+            fig, ax = plt.subplots(figsize=(15, 8))
+            
+            x = np.arange(len(top_categories))
+            width = 0.35
+            
+            # 평균 막대
+            rects1 = ax.bar(x - width/2, top_categories['평균'], width, 
+                          label='평균', color='skyblue')
+            
+            # 중앙값 막대
+            rects2 = ax.bar(x + width/2, top_categories['중앙값'], width,
+                          label='중앙값', color='lightgreen')
+            
+            # 건수 표시 (보조 축)
+            ax2 = ax.twinx()
+            ax2.plot(x, top_categories['건수'], color='red', marker='o',
+                    label='건수', linestyle='--')
+            
+            # 축 레이블 및 범례
+            ax.set_ylabel(schema[num_col].get('display_name', num_col))
+            ax2.set_ylabel('건수')
+            ax.set_title(f"상위 10개 {schema[cat_col].get('display_name', cat_col)}별 성과 분석")
+            
+            # x축 레이블
+            ax.set_xticks(x)
+            ax.set_xticklabels(top_categories.index, rotation=45, ha='right')
+            
+            # 범례 통합
+            lines1, labels1 = ax.get_legend_handles_labels()
+            lines2, labels2 = ax2.get_legend_handles_labels()
+            ax.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+            
             plt.tight_layout()
             st.pyplot(fig)
             plt.close()
-        
-        # 3. 다변량 분석 (수치형 변수 간)
-        if len(numeric_cols) >= 2:
-            st.write("#### 3️⃣ 다변량 분석")
-            fig, ax = plt.subplots(figsize=(10, 8))
-            sns.scatterplot(data=df, x=numeric_cols[0], y=numeric_cols[1], ax=ax)
-            plt.title(f"{schema[numeric_cols[0]].get('display_name', numeric_cols[0])} vs {schema[numeric_cols[1]].get('display_name', numeric_cols[1])}")
-            plt.tight_layout()
-            st.pyplot(fig)
-            plt.close()
-    
+            
     except Exception as e:
-        st.error(f"복합 시각화 생성 중 오류 발생: {str(e)}")
+        st.error(f"심층 분석 시각화 생성 중 오류 발생: {str(e)}")
     
-    # 데이터 기본 정보 수집
+    # 데이터 기본 정보 수집 (간소화)
     basic_info = {
-        "총 행 수": df.shape[0],
-        "총 열 수": df.shape[1],
-        "컬럼 목록": list(df.columns)
+        "총_행수": df.shape[0],
+        "총_열수": df.shape[1]
     }
     
-    # 분석 결과를 요약하여 토큰 수를 줄임
+    # 분석 결과 요약 (토큰 수 최적화)
     summarized_results = {
-        "메타정보": analysis_results.get("메타정보", {}),
-        "상관관계": analysis_results.get("상관관계", [])[:5],  # 상위 5개 상관관계만 포함
-        "분석_계획": st.session_state.analysis_plan if "analysis_plan" in st.session_state else None
+        "메타정보": {
+            "분석시작": analysis_results.get("메타정보", {}).get("분석시작", ""),
+            "분석종료": analysis_results.get("메타정보", {}).get("분석종료", "")
+        }
     }
     
-    # 각 변수별 주요 통계만 포함
+    # 주요 상관관계만 포함
+    correlations = analysis_results.get("상관관계", [])
+    if correlations:
+        summarized_results["주요_상관관계"] = [
+            {
+                "변수쌍": f"{corr['변수1']}-{corr['변수2']}",
+                "계수": round(corr['상관계수'], 2)
+            }
+            for corr in correlations[:3]  # 상위 3개만 포함
+        ]
+    
+    # 각 변수별 핵심 통계만 포함
     for col, info in schema.items():
         if col in analysis_results:
             if info["data_type"] == "numeric":
+                stats = analysis_results[col].get("기본통계", {})
                 summarized_results[col] = {
-                    "기본통계": {
-                        k: analysis_results[col]["기본통계"][k] 
-                        for k in ["평균", "중앙값", "표준편차"]
-                    },
-                    "이상치": {
-                        "개수": analysis_results[col]["이상치"]["개수"],
-                        "비율": analysis_results[col]["이상치"]["비율"]
-                    }
+                    "평균": round(stats.get("평균", 0), 2),
+                    "중앙값": round(stats.get("중앙값", 0), 2),
+                    "이상치비율": round(analysis_results[col].get("이상치", {}).get("비율", 0), 2)
                 }
             elif info["data_type"] == "categorical":
                 value_dist = analysis_results[col].get("고유값", {}).get("분포", {})
+                top_categories = dict(list(value_dist.items())[:2])  # 상위 2개만 포함
                 summarized_results[col] = {
-                    "고유값": {
-                        "개수": analysis_results[col]["고유값"]["개수"],
-                        "주요범주": dict(list(value_dist.items())[:3])  # 상위 3개 범주만 포함
-                    }
+                    "주요범주": top_categories
                 }
             elif info["data_type"] == "datetime":
+                period = analysis_results[col].get("기간", {})
                 summarized_results[col] = {
-                    "기간": analysis_results[col]["기간"]
+                    "기간": f"{period.get('시작', '')} ~ {period.get('종료', '')}"
                 }
     
-    # LLM 프롬프트 생성
-    prompt = f"""데이터 분석가로서, 다음 데이터 분석 결과와 초기 분석 계획을 바탕으로 중요한 인사이트를 도출해주세요.
+    # 분석 계획 요약
+    analysis_plan_summary = ""
+    if "analysis_plan" in st.session_state:
+        plan_lines = st.session_state.analysis_plan.split('\n')
+        analysis_plan_summary = '\n'.join([line for line in plan_lines if line.startswith(('1.', '2.', '3.', '4.', '5.'))])
+    
+    # LLM 프롬프트 생성 (최적화)
+    prompt = f"""데이터 분석가로서, 다음 분석 결과에서 핵심 인사이트를 도출해주세요.
 
-[초기 분석 계획]
-{summarized_results["분석_계획"]}
+분석계획:
+{analysis_plan_summary}
 
-[기본 정보]
-{json.dumps(basic_info, indent=2, ensure_ascii=False)}
+기본정보:
+{json.dumps(basic_info, ensure_ascii=False)}
 
-[주요 분석 결과]
-{json.dumps(summarized_results, indent=2, ensure_ascii=False)}
+주요결과:
+{json.dumps(summarized_results, ensure_ascii=False)}
 
 다음 형식으로 응답해주세요:
 
-1. 초기 분석 계획 대비 주요 발견사항
-   - 분석 목표별 달성 여부와 핵심 발견
-   - 예상했던 결과와 실제 결과의 차이점
-   - 추가로 발견된 중요한 패턴이나 트렌드
+1. 핵심 발견사항 (3가지)
+- 발견 1: (구체적 수치와 함께)
+- 발견 2: (구체적 수치와 함께)
+- 발견 3: (구체적 수치와 함께)
 
-2. 비즈니스 인사이트 및 제안사항
-   - 데이터 기반 의사결정 포인트
-   - 구체적인 개선 제안사항
-   - 실행 가능한 액션 아이템
+2. 개선 제안 (2가지)
+- 제안 1: (실행 가능한 구체적 방안)
+- 제안 2: (실행 가능한 구체적 방안)
 
-3. 추가 분석 필요 영역
-   - 심층 분석이 필요한 부분
-   - 추가 데이터 수집이 필요한 영역
-   - 장기적인 모니터링이 필요한 지표
-
-각 항목은 데이터 분석 결과를 기반으로 구체적인 수치와 함께 설명해주세요.
-특히 초기 분석 계획에서 설정한 목표와 연계하여 인사이트를 도출해주세요.
+3. 추가 분석 필요사항 (1가지)
+- 분석주제: (구체적인 분석 방향)
 """
     
     response = llm.invoke(prompt)
