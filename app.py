@@ -41,6 +41,25 @@ st.set_page_config(
     layout="wide"
 )
 
+# 한글 폰트 CSS 설정
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Noto Sans KR', sans-serif;
+}
+
+.streamlit-expanderHeader {
+    font-family: 'Noto Sans KR', sans-serif;
+}
+
+.stMarkdown, .stText {
+    font-family: 'Noto Sans KR', sans-serif;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # 세션 상태 초기화
 if 'data' not in st.session_state:
     st.session_state.data = None
