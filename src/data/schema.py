@@ -104,30 +104,33 @@ def suggest_schema_with_llm(df: pd.DataFrame, llm) -> Optional[Dict]:
     data_info = df.dtypes.to_dict()
     data_info = {k: str(v) for k, v in data_info.items()}
     
-    prompt = f"""데이터셋의 스키마를 분석하고 YAML 형식으로 제안해주세요.
-    각 컬럼에 대해 다음 정보를 포함해야 합니다:
-    - data_type: (numeric/categorical/datetime/text)
-    - analysis_methods: 적절한 분석 방법 목록
-    - visualization_methods: 적절한 시각화 방법 목록
-    - description: 컬럼에 대한 설명
+    # LLM 프롬프트 생성
+    prompt = f"""무조건 한국어로 대답하세요.
 
-    데이터 타입 정보:
-    {data_info}
+데이터셋의 스키마를 분석하고 YAML 형식으로 제안해주세요.
+각 컬럼에 대해 다음 정보를 포함해야 합니다:
+- data_type: (numeric/categorical/datetime/text)
+- analysis_methods: 적절한 분석 방법 목록
+- visualization_methods: 적절한 시각화 방법 목록
+- description: 컬럼에 대한 설명
 
-    샘플 데이터:
-    {sample_data}
+데이터 타입 정보:
+{data_info}
 
-    응답은 다음 YAML 형식으로 작성해주세요:
-    column_name:
-      data_type: type
-      analysis_methods:
-        - method1
-        - method2
-      visualization_methods:
-        - viz1
-        - viz2
-      description: description
-    """
+샘플 데이터:
+{sample_data}
+
+응답은 다음 YAML 형식으로 작성해주세요:
+column_name:
+  data_type: type
+  analysis_methods:
+    - method1
+    - method2
+  visualization_methods:
+    - viz1
+    - viz2
+  description: description
+"""
     
     response = llm.invoke(prompt)
     try:

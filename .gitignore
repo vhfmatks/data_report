@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-.venv
+.venv/
 .env
 
 # Build outputs
@@ -36,3 +36,59 @@ coverage/
 # Misc
 .DS_Store
 Thumbs.db
+.venv/Lib/site-packages/pytz/__init__.py
+.venv/Lib/site-packages/pytz/zoneinfo/CET
+.venv/Lib/site-packages/pytz/zoneinfo/CST6CDT
+.venv/Lib/site-packages/pytz/zoneinfo/EET
+.venv/Lib/site-packages/pytz/zoneinfo/EST
+.venv/Lib/site-packages/pytz/zoneinfo/EST5EDT
+.venv/Lib/site-packages/pytz/zoneinfo/HST
+.venv/Lib/site-packages/pytz/zoneinfo/leapseconds
+.venv/Lib/site-packages/pytz/zoneinfo/MET
+.venv/Lib/site-packages/pytz/zoneinfo/MST
+.venv/Lib/site-packages/pytz/zoneinfo/MST7MDT
+.venv/Lib/site-packages/pytz/zoneinfo/Portugal
+.venv/Lib/site-packages/pytz/zoneinfo/PST8PDT
+.venv/Lib/site-packages/pytz/zoneinfo/tzdata.zi
+.venv/Lib/site-packages/pytz/zoneinfo/WET
+.venv/Lib/site-packages/pytz/zoneinfo/zone.tab
+.venv/Lib/site-packages/pytz/zoneinfo/zone1970.tab
+.venv/Lib/site-packages/pytz/zoneinfo/zonenow.tab
+.venv/Lib/site-packages/pytz/zoneinfo/Africa/Blantyre
+.venv/Lib/site-packages/pytz/zoneinfo/Africa/Bujumbura
+.venv/Lib/site-packages/pytz/zoneinfo/Africa/Gaborone
+.venv/Lib/site-packages/pytz/zoneinfo/Africa/Harare
+.venv/Lib/site-packages/pytz/zoneinfo/Africa/Kigali
+.venv/Lib/site-packages/pytz/zoneinfo/Africa/Lubumbashi
+.venv/Lib/site-packages/pytz/zoneinfo/Africa/Lusaka
+.venv/Lib/site-packages/pytz/zoneinfo/Africa/Maputo
+.venv/Lib/site-packages/pytz/zoneinfo/America/Asuncion
+.venv/Lib/site-packages/pytz/zoneinfo/America/Bahia_Banderas
+.venv/Lib/site-packages/pytz/zoneinfo/America/Cancun
+.venv/Lib/site-packages/pytz/zoneinfo/America/Chihuahua
+.venv/Lib/site-packages/pytz/zoneinfo/America/Ciudad_Juarez
+.venv/Lib/site-packages/pytz/zoneinfo/America/Ensenada
+.venv/Lib/site-packages/pytz/zoneinfo/America/Hermosillo
+.venv/Lib/site-packages/pytz/zoneinfo/America/Mazatlan
+.venv/Lib/site-packages/pytz/zoneinfo/America/Merida
+.venv/Lib/site-packages/pytz/zoneinfo/America/Mexico_City
+.venv/Lib/site-packages/pytz/zoneinfo/America/Monterrey
+.venv/Lib/site-packages/pytz/zoneinfo/America/Ojinaga
+.venv/Lib/site-packages/pytz/zoneinfo/America/Santa_Isabel
+.venv/Lib/site-packages/pytz/zoneinfo/America/Tijuana
+.venv/Lib/site-packages/pytz/zoneinfo/Asia/Choibalsan
+.venv/Lib/site-packages/pytz/zoneinfo/Asia/Dili
+.venv/Lib/site-packages/pytz/zoneinfo/Asia/Manila
+.venv/Lib/site-packages/pytz/zoneinfo/Atlantic/Azores
+.venv/Lib/site-packages/pytz/zoneinfo/Atlantic/Madeira
+.venv/Lib/site-packages/pytz/zoneinfo/Europe/Lisbon
+.venv/Lib/site-packages/pytz/zoneinfo/Mexico/BajaNorte
+.venv/Lib/site-packages/pytz/zoneinfo/Mexico/BajaSur
+.venv/Lib/site-packages/pytz/zoneinfo/Mexico/General
+.venv/Lib/site-packages/pytz-2025.1.dist-info/INSTALLER
+.venv/Lib/site-packages/pytz-2025.1.dist-info/LICENSE.txt
+.venv/Lib/site-packages/pytz-2025.1.dist-info/METADATA
+.venv/Lib/site-packages/pytz-2025.1.dist-info/RECORD
+.venv/Lib/site-packages/pytz-2025.1.dist-info/top_level.txt
+.venv/Lib/site-packages/pytz-2025.1.dist-info/WHEEL
+.venv/Lib/site-packages/pytz-2025.1.dist-info/zip-safe

@@ -33,8 +33,8 @@ TOP_N_CATEGORIES = 7
 
 # API 설정
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-MODEL_NAME = "mixtral-8x7b-32768"
-TEMPERATURE = 0
+MODEL_NAME = "deepseek-r1-distill-llama-70b"
+TEMPERATURE = 0.5
 
 # 파일 경로
 SCHEMA_PATH = BASE_DIR / "schema.md" 

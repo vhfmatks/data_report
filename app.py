@@ -73,6 +73,8 @@ if 'analysis_plan_created' not in st.session_state:
     st.session_state.analysis_plan_created = False
 if 'analysis_started' not in st.session_state:
     st.session_state.analysis_started = False
+if 'insights_generated' not in st.session_state:
+    st.session_state.insights_generated = False
 
 # 제목
 st.title("📊 데이터 분석 파이프라인")
@@ -206,6 +208,10 @@ if uploaded_file is not None:
                 help="최종적으로 작성할 보고서의 주제를 작성해주세요."
             )
             
+            # 세션 상태에 저장
+            st.session_state.purpose = purpose
+            st.session_state.topic = topic
+            
             # 분석 계획 수립
             if purpose and topic:
                 if not st.session_state.analysis_plan_created and st.button("🎯 분석 계획 수립"):
@@ -224,10 +230,6 @@ if uploaded_file is not None:
                 
                 if st.session_state.analysis_started:
                     st.divider()
-                    
-                    # 승인된 분석 계획 표시
-                    st.write("### 승인된 분석 계획")
-                    st.markdown(st.session_state.analysis_plan)
                     
                     # 데이터 분석 수행
                     with st.spinner("데이터 분석을 수행하고 있습니다..."):
@@ -344,38 +346,80 @@ if uploaded_file is not None:
                         # 분석 완료 메시지
                         st.success("모든 데이터 분석 단계가 완료되었습니다.")
                         
+                        # 추천된 분석 방법에 따른 추가 분석 수행
+                        if "recommended_analysis" in st.session_state:
+                            st.subheader("4-3. AI 추천 분석")
+                            with st.spinner("추천된 분석 방법을 적용하고 있습니다..."):
+                                # 시계열 분석 (해당되는 경우)
+                                if "time_series_analysis" in st.session_state.recommended_analysis:
+                                    st.write("##### 시계열 분석")
+                                    time_series_results = analyze_time_series(
+                                        df,
+                                        st.session_state.recommended_analysis["time_series_analysis"]
+                                    )
+                                    analysis_results["time_series"] = time_series_results
+                                
+                                # 군집 분석 (해당되는 경우)
+                                if "cluster_analysis" in st.session_state.recommended_analysis:
+                                    st.write("##### 군집 분석")
+                                    cluster_results = analyze_clusters(
+                                        df,
+                                        st.session_state.recommended_analysis["cluster_analysis"]
+                                    )
+                                    analysis_results["clusters"] = cluster_results
+                                
+                                # 예측 모델링 (해당되는 경우)
+                                if "predictive_modeling" in st.session_state.recommended_analysis:
+                                    st.write("##### 예측 모델링")
+                                    prediction_results = create_prediction_model(
+                                        df,
+                                        st.session_state.recommended_analysis["predictive_modeling"]
+                                    )
+                                    analysis_results["predictions"] = prediction_results
+                        
                         # 다음 단계 안내
                         st.subheader("다음 단계")
                         st.write("분석 결과를 바탕으로 인사이트를 도출하시겠습니까?")
                         
                         # 인사이트 도출 버튼 활성화
-                        if st.button("🔍 데이터 인사이트 도출"):
+                        if not st.session_state.get("insights_generated", False) and st.button("🔍 데이터 인사이트 도출"):
                             st.header("5. 데이터 인사이트")
                             with st.spinner("AI가 데이터를 심층 분석하고 있습니다..."):
                                 insights = generate_insights(df, st.session_state.schema, analysis_results, llm)
                                 st.markdown(insights)
                                 st.session_state.insights = insights  # 인사이트 저장
-                                
-                                # 결과 보고서 생성 버튼
-                                st.write("### 다음 단계")
-                                st.write("분석 결과와 인사이트를 바탕으로 보고서를 생성하시겠습니까?")
-                                
-                                if st.button("📊 결과 보고서 생성"):
-                                    st.header("6. 결과 보고서")
-                                    report_content = generate_report(
-                                        df,
-                                        st.session_state.schema,
-                                        analysis_results,
-                                        st.session_state.insights,
-                                        visualize_data(df, st.session_state.schema, llm)
-                                    )
-                                    st.markdown(report_content)
-                                    
-                                    # 보고서 다운로드 버튼
-                                    create_download_button(
-                                        report_content,
-                                        f"analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
-                                    )
+                                st.session_state.insights_generated = True  # 인사이트 생성 완료 표시
+                        
+                        # 인사이트가 생성된 경우에만 보고서 생성 버튼 표시
+                        if st.session_state.get("insights_generated", False):
+                            st.write("### 다음 단계")
+                            st.write("분석 결과와 인사이트를 바탕으로 보고서를 생성하시겠습니까?")
+                            
+                            if st.button("📊 결과 보고서 생성"):
+                                st.header("6. 결과 보고서")
+                                with st.spinner("보고서를 생성하고 있습니다..."):
+                                    try:
+                                        report_content = generate_report(
+                                            df,
+                                            st.session_state.schema,
+                                            analysis_results,
+                                            st.session_state.insights,
+                                            None  # visualizations는 현재 사용하지 않음
+                                        )
+                                        
+                                        # Word 문서 다운로드 버튼
+                                        st.download_button(
+                                            label="📥 Word 보고서 다운로드",
+                                            data=report_content,
+                                            file_name=f"analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx",
+                                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                        )
+                                        
+                                        st.success("보고서가 성공적으로 생성되었습니다! 위 버튼을 클릭하여 다운로드하실 수 있습니다.")
+                                    except Exception as e:
+                                        st.error(f"보고서 생성 중 오류가 발생했습니다: {str(e)}")
+                                        st.error("상세 오류 정보:")
+                                        st.exception(e)
             else:
                 st.info("분석 목적과 보고서 주제를 입력한 후 분석 계획을 수립해주세요.")
         

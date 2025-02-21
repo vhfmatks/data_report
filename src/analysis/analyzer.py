@@ -324,4 +324,200 @@ def analyze_data(df: pd.DataFrame, schema: Dict) -> Dict[str, Any]:
         Dict[str, Any]: 분석 결과
     """
     analyzer = DataAnalyzer(df, schema)
-    return analyzer.analyze() 
+    return analyzer.analyze()
+
+def analyze_time_series(df, config):
+    """시계열 분석을 수행합니다.
+    
+    Args:
+        df (pd.DataFrame): 분석할 데이터프레임
+        config (dict): 시계열 분석 설정
+        
+    Returns:
+        dict: 시계열 분석 결과
+    """
+    results = {}
+    
+    try:
+        # 시계열 데이터 준비
+        date_col = config.get("date_column")
+        value_col = config.get("value_column")
+        df[date_col] = pd.to_datetime(df[date_col])
+        df = df.sort_values(date_col)
+        
+        # 시계열 분해
+        from statsmodels.tsa.seasonal import seasonal_decompose
+        decomposition = seasonal_decompose(df[value_col], period=config.get("period", 12))
+        results["decomposition"] = {
+            "trend": decomposition.trend.tolist(),
+            "seasonal": decomposition.seasonal.tolist(),
+            "resid": decomposition.resid.tolist()
+        }
+        
+        # 추세 분석
+        from scipy import stats
+        slope, intercept, r_value, p_value, std_err = stats.linregress(
+            range(len(df)), df[value_col]
+        )
+        results["trend_analysis"] = {
+            "slope": slope,
+            "intercept": intercept,
+            "r_squared": r_value**2,
+            "p_value": p_value
+        }
+        
+        # 계절성 검정
+        if config.get("check_seasonality", True):
+            from statsmodels.stats.diagnostic import acf
+            acf_values = acf(df[value_col], nlags=config.get("seasonal_lags", 24))
+            results["seasonality"] = {
+                "acf_values": acf_values.tolist(),
+                "significant_lags": [i for i, v in enumerate(acf_values) if abs(v) > 0.2]
+            }
+    
+    except Exception as e:
+        results["error"] = str(e)
+    
+    return results
+
+def analyze_clusters(df, config):
+    """군집 분석을 수행합니다.
+    
+    Args:
+        df (pd.DataFrame): 분석할 데이터프레임
+        config (dict): 군집 분석 설정
+        
+    Returns:
+        dict: 군집 분석 결과
+    """
+    results = {}
+    
+    try:
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.cluster import KMeans
+        
+        # 데이터 준비
+        features = config.get("features", [])
+        X = df[features]
+        
+        # 데이터 스케일링
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+        
+        # 최적의 군집 수 찾기
+        if config.get("find_optimal_k", True):
+            from sklearn.metrics import silhouette_score
+            silhouette_scores = []
+            K = range(2, min(11, len(df)))
+            
+            for k in K:
+                kmeans = KMeans(n_clusters=k, random_state=42)
+                cluster_labels = kmeans.fit_predict(X_scaled)
+                silhouette_avg = silhouette_score(X_scaled, cluster_labels)
+                silhouette_scores.append(silhouette_avg)
+            
+            optimal_k = K[np.argmax(silhouette_scores)]
+            results["optimal_k"] = optimal_k
+        else:
+            optimal_k = config.get("n_clusters", 3)
+        
+        # 군집 분석 수행
+        kmeans = KMeans(n_clusters=optimal_k, random_state=42)
+        cluster_labels = kmeans.fit_predict(X_scaled)
+        
+        # 결과 저장
+        results["labels"] = cluster_labels.tolist()
+        results["centroids"] = kmeans.cluster_centers_.tolist()
+        
+        # 군집별 특성 분석
+        cluster_stats = []
+        for i in range(optimal_k):
+            cluster_data = df[cluster_labels == i]
+            stats = {
+                "size": len(cluster_data),
+                "percentage": len(cluster_data) / len(df) * 100,
+                "features": {}
+            }
+            for feature in features:
+                stats["features"][feature] = {
+                    "mean": cluster_data[feature].mean(),
+                    "std": cluster_data[feature].std(),
+                    "min": cluster_data[feature].min(),
+                    "max": cluster_data[feature].max()
+                }
+            cluster_stats.append(stats)
+        results["cluster_stats"] = cluster_stats
+    
+    except Exception as e:
+        results["error"] = str(e)
+    
+    return results
+
+def create_prediction_model(df, config):
+    """예측 모델을 생성하고 평가합니다.
+    
+    Args:
+        df (pd.DataFrame): 분석할 데이터프레임
+        config (dict): 예측 모델 설정
+        
+    Returns:
+        dict: 예측 모델 결과
+    """
+    results = {}
+    
+    try:
+        from sklearn.model_selection import train_test_split
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.ensemble import RandomForestRegressor
+        from sklearn.metrics import mean_squared_error, r2_score
+        
+        # 데이터 준비
+        features = config.get("features", [])
+        target = config.get("target")
+        
+        X = df[features]
+        y = df[target]
+        
+        # 데이터 분할
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+        
+        # 데이터 스케일링
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        # 모델 학습
+        model = RandomForestRegressor(
+            n_estimators=config.get("n_estimators", 100),
+            random_state=42
+        )
+        model.fit(X_train_scaled, y_train)
+        
+        # 예측 및 평가
+        y_pred = model.predict(X_test_scaled)
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+        
+        # 특성 중요도
+        feature_importance = dict(zip(features, model.feature_importances_))
+        
+        # 결과 저장
+        results["metrics"] = {
+            "mse": mse,
+            "rmse": np.sqrt(mse),
+            "r2": r2
+        }
+        results["feature_importance"] = feature_importance
+        
+        # 예측값 저장
+        results["predictions"] = {
+            "actual": y_test.tolist(),
+            "predicted": y_pred.tolist()
+        }
+    
+    except Exception as e:
+        results["error"] = str(e)
+    
+    return results 

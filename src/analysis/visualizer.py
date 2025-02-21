@@ -407,7 +407,9 @@ def create_analysis_plan(df: pd.DataFrame, schema: Dict, purpose: str, topic: st
         }
         
         # LLM 프롬프트 생성
-        prompt = f"""데이터 분석 전문가로서, 다음 정보를 바탕으로 체계적인 분석 계획을 수립해주세요.
+        prompt = f"""무조건 한국어로 대답하세요.
+
+데이터 분석 전문가로서, 다음 정보를 바탕으로 체계적인 분석 계획을 수립해주세요.
 
 [데이터 활용 목적]
 {purpose}
@@ -450,7 +452,27 @@ def create_analysis_plan(df: pd.DataFrame, schema: Dict, purpose: str, topic: st
         
         # LLM을 통한 분석 계획 생성
         response = llm.invoke(prompt)
-        return response.content
+        response_content = response.content
+        
+        # <think> 태그 필터링
+        if "<think>" in response_content:
+            filtered_content = []
+            in_think_block = False
+            
+            for line in response_content.split('\n'):
+                if "<think>" in line:
+                    in_think_block = True
+                    continue
+                elif "</think>" in line:
+                    in_think_block = False
+                    continue
+                
+                if not in_think_block:
+                    filtered_content.append(line)
+            
+            response_content = '\n'.join(filtered_content)
+        
+        return response_content
         
     except Exception as e:
         return f"분석 계획 수립 중 오류가 발생했습니다: {str(e)}"
@@ -485,6 +507,70 @@ def visualize_data(df: pd.DataFrame, schema: Dict, llm=None):
                     # 분석 계획 승인 및 분석 시작 버튼
                     if st.button("✅ 분석 계획 승인 및 분석 시작"):
                         st.divider()
+                        
+                        # LLM을 통한 맞춤형 분석 방법 추천
+                        st.write("## 🤖 AI 분석 방법 추천")
+                        with st.spinner("AI가 분석 방법을 추천하고 있습니다..."):
+                            # 분석 추천을 위한 프롬프트 생성
+                            recommendation_prompt = f"""무조건 한국어로 대답하세요.
+
+데이터 분석 전문가로서, 다음 정보를 바탕으로 구체적인 분석 방법과 시각화 방법을 추천해주세요.
+
+[분석 목적]
+{purpose}
+
+[분석 계획]
+{analysis_plan}
+
+[데이터 정보]
+{json.dumps({col: {"type": info["data_type"], "name": info.get("display_name", col)} 
+             for col, info in schema.items()}, indent=2, ensure_ascii=False)}
+
+다음 형식으로 추천해주세요:
+
+1. 단계별 분석 방법
+   - 각 단계에서 필요한 구체적인 분석 방법
+   - 사용할 통계적 기법
+   - 예상되는 결과물
+
+2. 시각화 추천
+   - 각 분석에 적합한 차트 유형
+   - 복합 시각화 방안
+   - 인터랙티브 요소 추가 방안
+
+3. 고급 분석 기법
+   - 시계열 분석 방법 (해당되는 경우)
+   - 군집 분석 방법 (해당되는 경우)
+   - 예측 모델링 방안 (해당되는 경우)
+
+각 추천에 대해 왜 이 방법이 적합한지 근거를 함께 제시해주세요."""
+
+                            recommendations = llm.invoke(recommendation_prompt)
+                            recommendations_content = recommendations.content
+                            
+                            # <think> 태그 필터링
+                            if "<think>" in recommendations_content:
+                                filtered_content = []
+                                in_think_block = False
+                                
+                                for line in recommendations_content.split('\n'):
+                                    if "<think>" in line:
+                                        in_think_block = True
+                                        continue
+                                    elif "</think>" in line:
+                                        in_think_block = False
+                                        continue
+                                    
+                                    if not in_think_block:
+                                        filtered_content.append(line)
+                                
+                                recommendations_content = '\n'.join(filtered_content)
+                            
+                            st.markdown(recommendations_content)
+                            
+                            # 추천된 분석 방법 승인
+                            if st.button("✨ 추천 분석 방법 적용"):
+                                st.divider()
                         
                         # 기본 정보 표시
                         st.write("## 📋 데이터 기본 정보")
@@ -525,4 +611,123 @@ def visualize_data(df: pd.DataFrame, schema: Dict, llm=None):
             st.info("분석 목적과 보고서 주제를 입력한 후 분석 계획을 수립해주세요.")
             
     except Exception as e:
-        st.error(f"데이터 시각화 중 오류 발생: {str(e)}") 
+        st.error(f"데이터 시각화 중 오류 발생: {str(e)}")
+
+def plot_time_series_analysis(results, date_col, value_col):
+    """시계열 분석 결과를 시각화합니다."""
+    st.write("#### 시계열 분석 결과")
+    
+    # 시계열 분해 시각화
+    if "decomposition" in results:
+        fig = plt.figure(figsize=(12, 10))
+        plt.subplot(411)
+        plt.plot(results["decomposition"]["trend"], label="추세")
+        plt.title("시계열 분해 - 추세")
+        plt.legend()
+        
+        plt.subplot(412)
+        plt.plot(results["decomposition"]["seasonal"], label="계절성")
+        plt.title("시계열 분해 - 계절성")
+        plt.legend()
+        
+        plt.subplot(413)
+        plt.plot(results["decomposition"]["resid"], label="잔차")
+        plt.title("시계열 분해 - 잔차")
+        plt.legend()
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+    
+    # 추세 분석 결과
+    if "trend_analysis" in results:
+        st.write("##### 추세 분석")
+        trend = results["trend_analysis"]
+        st.write(f"- 기울기: {trend['slope']:.4f}")
+        st.write(f"- 절편: {trend['intercept']:.4f}")
+        st.write(f"- R² 값: {trend['r_squared']:.4f}")
+        st.write(f"- p-value: {trend['p_value']:.4f}")
+    
+    # 계절성 분석 결과
+    if "seasonality" in results:
+        st.write("##### 계절성 분석")
+        fig = plt.figure(figsize=(10, 6))
+        plt.plot(results["seasonality"]["acf_values"])
+        plt.title("자기상관함수 (ACF)")
+        plt.axhline(y=0, linestyle="--", color="gray")
+        plt.axhline(y=0.2, linestyle="--", color="red")
+        plt.axhline(y=-0.2, linestyle="--", color="red")
+        st.pyplot(fig)
+
+def plot_cluster_analysis(results, df, features):
+    """군집 분석 결과를 시각화합니다."""
+    st.write("#### 군집 분석 결과")
+    
+    if "error" in results:
+        st.error(f"군집 분석 중 오류 발생: {results['error']}")
+        return
+    
+    # 군집별 통계
+    st.write("##### 군집별 특성")
+    for i, stats in enumerate(results["cluster_stats"]):
+        st.write(f"군집 {i+1}:")
+        st.write(f"- 크기: {stats['size']} ({stats['percentage']:.1f}%)")
+        st.write("- 특성별 통계:")
+        for feature, values in stats["features"].items():
+            st.write(f"  - {feature}:")
+            st.write(f"    - 평균: {values['mean']:.2f}")
+            st.write(f"    - 표준편차: {values['std']:.2f}")
+    
+    # 2D 시각화 (첫 두 특성 사용)
+    if len(features) >= 2:
+        from sklearn.preprocessing import StandardScaler
+        
+        X = df[features[:2]]
+        X_scaled = StandardScaler().fit_transform(X)
+        
+        fig = plt.figure(figsize=(10, 6))
+        scatter = plt.scatter(X_scaled[:, 0], X_scaled[:, 1], 
+                            c=results["labels"], cmap="viridis")
+        plt.title("군집 분포 (2D)")
+        plt.xlabel(features[0])
+        plt.ylabel(features[1])
+        plt.colorbar(scatter)
+        st.pyplot(fig)
+
+def plot_prediction_results(results):
+    """예측 모델 결과를 시각화합니다."""
+    st.write("#### 예측 모델 결과")
+    
+    if "error" in results:
+        st.error(f"예측 모델링 중 오류 발생: {results['error']}")
+        return
+    
+    # 모델 성능 지표
+    st.write("##### 모델 성능")
+    metrics = results["metrics"]
+    st.write(f"- RMSE: {metrics['rmse']:.2f}")
+    st.write(f"- R² Score: {metrics['r2']:.4f}")
+    
+    # 특성 중요도
+    st.write("##### 특성 중요도")
+    importance = results["feature_importance"]
+    fig = plt.figure(figsize=(10, 6))
+    plt.bar(importance.keys(), importance.values())
+    plt.title("특성 중요도")
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
+    
+    # 실제값 vs 예측값
+    st.write("##### 실제값 vs 예측값")
+    fig = plt.figure(figsize=(10, 6))
+    plt.scatter(results["predictions"]["actual"], 
+               results["predictions"]["predicted"], 
+               alpha=0.5)
+    plt.plot([min(results["predictions"]["actual"]), 
+              max(results["predictions"]["actual"])],
+             [min(results["predictions"]["actual"]), 
+              max(results["predictions"]["actual"])], 
+             'r--')
+    plt.xlabel("실제값")
+    plt.ylabel("예측값")
+    plt.title("실제값 vs 예측값 비교")
+    st.pyplot(fig) 
