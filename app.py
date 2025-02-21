@@ -7,6 +7,9 @@ from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 import os
 from datetime import datetime
+import matplotlib.font_manager as fm
+import matplotlib as mpl
+import platform
 
 from src.config.settings import GROQ_API_KEY, MODEL_NAME, TEMPERATURE
 from src.data.loader import load_data, preprocess_data
@@ -57,8 +60,36 @@ html, body, [class*="css"] {
 .stMarkdown, .stText {
     font-family: 'Noto Sans KR', sans-serif;
 }
+
+/* 차트 내 한글 폰트 설정 */
+.js-plotly-plot .plotly .gtitle, 
+.js-plotly-plot .plotly .xtitle,
+.js-plotly-plot .plotly .ytitle,
+.js-plotly-plot .plotly .legend .legendtext,
+.js-plotly-plot .plotly .xtick text,
+.js-plotly-plot .plotly .ytick text {
+    font-family: 'Noto Sans KR', sans-serif !important;
+}
 </style>
 """, unsafe_allow_html=True)
+
+# matplotlib 한글 폰트 설정
+import matplotlib as plt
+
+# 운영체제별 기본 한글 폰트 설정
+if platform.system() == 'Windows':
+    font_path = 'C:/Windows/Fonts/malgun.ttf'
+elif platform.system() == 'Darwin':  # macOS
+    font_path = '/System/Library/Fonts/AppleGothic.ttf'
+else:  # Linux
+    font_path = '/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
+
+# 폰트 추가 및 설정
+if os.path.exists(font_path):
+    font_name = fm.FontProperties(fname=font_path).get_name()
+    mpl.rcParams['font.family'] = font_name
+    plt.rcParams['font.family'] = font_name
+    plt.rcParams['axes.unicode_minus'] = False
 
 # 세션 상태 초기화
 if 'data' not in st.session_state:

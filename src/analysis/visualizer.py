@@ -16,6 +16,7 @@ from src.config.settings import (
     TOP_N_CATEGORIES
 )
 import json
+from src.utils.helpers import filter_unwanted_languages
 
 # Seaborn 스타일 설정
 sns.set_theme(style=SEABORN_STYLE)
@@ -407,9 +408,10 @@ def create_analysis_plan(df: pd.DataFrame, schema: Dict, purpose: str, topic: st
         }
         
         # LLM 프롬프트 생성
-        prompt = f"""무조건 한국어로 대답하세요.
+        prompt = f"""당신은 한국의 데이터 분석 전문가입니다. 반드시 한국어로만 응답해야 하며, 영어는 꼭 필요한 전문용어에만 사용하세요.
+절대로 중국어, 일본어, 러시아어 등 다른 언어를 사용하지 마세요.
 
-데이터 분석 전문가로서, 다음 정보를 바탕으로 체계적인 분석 계획을 수립해주세요.
+다음 정보를 바탕으로 체계적인 분석 계획을 수립해주세요.
 
 [데이터 활용 목적]
 {purpose}
@@ -448,11 +450,12 @@ def create_analysis_plan(df: pd.DataFrame, schema: Dict, purpose: str, topic: st
 5. 유의사항
    - 데이터 처리 시 주의점
    - 해석 시 고려사항
-"""
+
+응답은 반드시 한국어로만 작성하며, 영어는 꼭 필요한 전문용어에만 사용해주세요."""
         
         # LLM을 통한 분석 계획 생성
         response = llm.invoke(prompt)
-        response_content = response.content
+        response_content = filter_unwanted_languages(response.content)
         
         # <think> 태그 필터링
         if "<think>" in response_content:
@@ -512,9 +515,10 @@ def visualize_data(df: pd.DataFrame, schema: Dict, llm=None):
                         st.write("## 🤖 AI 분석 방법 추천")
                         with st.spinner("AI가 분석 방법을 추천하고 있습니다..."):
                             # 분석 추천을 위한 프롬프트 생성
-                            recommendation_prompt = f"""무조건 한국어로 대답하세요.
+                            recommendation_prompt = f"""당신은 한국의 데이터 분석 전문가입니다. 반드시 한국어로만 응답해야 하며, 영어는 꼭 필요한 전문용어에만 사용하세요.
+절대로 중국어, 일본어, 러시아어 등 다른 언어를 사용하지 마세요.
 
-데이터 분석 전문가로서, 다음 정보를 바탕으로 구체적인 분석 방법과 시각화 방법을 추천해주세요.
+다음 정보를 바탕으로 구체적인 분석 방법과 시각화 방법을 추천해주세요.
 
 [분석 목적]
 {purpose}
@@ -543,10 +547,11 @@ def visualize_data(df: pd.DataFrame, schema: Dict, llm=None):
    - 군집 분석 방법 (해당되는 경우)
    - 예측 모델링 방안 (해당되는 경우)
 
-각 추천에 대해 왜 이 방법이 적합한지 근거를 함께 제시해주세요."""
+각 추천에 대해 왜 이 방법이 적합한지 근거를 함께 제시해주세요.
+응답은 반드시 한국어로만 작성하며, 영어는 꼭 필요한 전문용어에만 사용해주세요."""
 
                             recommendations = llm.invoke(recommendation_prompt)
-                            recommendations_content = recommendations.content
+                            recommendations_content = filter_unwanted_languages(recommendations.content)
                             
                             # <think> 태그 필터링
                             if "<think>" in recommendations_content:

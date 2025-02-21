@@ -10,6 +10,7 @@ import seaborn as sns
 import pandas as pd
 import streamlit as st
 import numpy as np
+from src.utils.helpers import filter_unwanted_languages
 
 def generate_insights(df: pd.DataFrame, schema: Dict, analysis_results: Dict, llm) -> str:
     """LLM을 사용하여 데이터 분석 결과로부터 인사이트 도출"""
@@ -84,9 +85,10 @@ def generate_insights(df: pd.DataFrame, schema: Dict, analysis_results: Dict, ll
             ]
 
         # 3. LLM 프롬프트 생성
-        prompt = f"""무조건 한국어로 대답하세요.
+        prompt = f"""당신은 한국의 데이터 분석 전문가입니다. 반드시 한국어로만 응답해야 하며, 영어는 꼭 필요한 전문용어에만 사용하세요.
+절대로 중국어, 일본어, 러시아어 등 다른 언어를 사용하지 마세요.
 
-데이터 분석 전문가로서, 다음 정보를 바탕으로 심층적인 인사이트를 도출해주세요.
+다음 정보를 바탕으로 심층적인 인사이트를 도출해주세요.
 
 [분석 컨텍스트]
 분석 목적: {context["분석_목적"]}
@@ -128,10 +130,12 @@ def generate_insights(df: pd.DataFrame, schema: Dict, analysis_results: Dict, ll
    - 추가 데이터 수집이 필요한 부분
    - 검증이 필요한 가설
 
-각 섹션에서 구체적인 수치와 근거를 포함하여 작성해주세요."""
+각 섹션에서 구체적인 수치와 근거를 포함하여 작성해주세요.
+응답은 반드시 한국어로만 작성하며, 영어는 꼭 필요한 전문용어에만 사용해주세요."""
 
         # 4. LLM을 통한 인사이트 생성
         response = llm.invoke(prompt)
+        response_content = filter_unwanted_languages(response.content)
         
         # 5. 시각화 및 상세 분석 추가
         st.write("### 📊 주요 시각화")
@@ -187,27 +191,7 @@ def generate_insights(df: pd.DataFrame, schema: Dict, analysis_results: Dict, ll
             plt.close()
 
         # 6. LLM 응답 표시
-        st.write("### �� 데이터 인사이트")
-        response_content = response.content
-        
-        # <think> 태그 필터링
-        if "<think>" in response_content:
-            filtered_content = []
-            in_think_block = False
-            
-            for line in response_content.split('\n'):
-                if "<think>" in line:
-                    in_think_block = True
-                    continue
-                elif "</think>" in line:
-                    in_think_block = False
-                    continue
-                
-                if not in_think_block:
-                    filtered_content.append(line)
-            
-            response_content = '\n'.join(filtered_content)
-        
+        st.write("### 데이터 인사이트")
         st.markdown(response_content)
         
         return response_content

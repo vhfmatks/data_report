@@ -7,24 +7,36 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import platform
+import matplotlib as mpl
 
 # 기본 설정
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # 운영체제별 기본 한글 폰트 설정
 if platform.system() == 'Windows':
-    FONT_FAMILY = 'Malgun Gothic'
+    font_path = 'C:/Windows/Fonts/malgun.ttf'  # 윈도우의 맑은 고딕 폰트 경로
+    font_name = 'Malgun Gothic'
 elif platform.system() == 'Darwin':  # macOS
-    FONT_FAMILY = 'AppleGothic'
+    font_path = '/System/Library/Fonts/AppleGothic.ttf'  # macOS의 애플고딕 폰트 경로
+    font_name = 'AppleGothic'
 else:  # Linux
-    FONT_FAMILY = 'NanumGothic'
+    font_path = '/usr/share/fonts/truetype/nanum/NanumGothic.ttf'  # 리눅스의 나눔고딕 폰트 경로
+    font_name = 'NanumGothic'
 
-# Seaborn 스타일 설정
-SEABORN_STYLE = "whitegrid"
+# 폰트 추가 및 설정
+font_added = fm.FontProperties(fname=font_path).get_name() if os.path.exists(font_path) else None
+FONT_FAMILY = font_added if font_added else font_name
 
 # matplotlib 한글 폰트 설정
 plt.rcParams['font.family'] = FONT_FAMILY
 plt.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
+
+# matplotlib 전역 설정
+mpl.rcParams['font.family'] = FONT_FAMILY
+mpl.rcParams['axes.unicode_minus'] = False
+
+# Seaborn 스타일 설정
+SEABORN_STYLE = "whitegrid"
 
 # 시각화 설정
 FIGURE_DEFAULT_SIZE = (10, 6)
