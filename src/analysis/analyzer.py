@@ -393,12 +393,12 @@ def analyze_clusters(df, config):
     results = {}
     
     try:
+        X = df[features]
         from sklearn.preprocessing import StandardScaler
         from sklearn.cluster import KMeans
         
         # 데이터 준비
         features = config.get("features", [])
-        X = df[features]
         
         # 데이터 스케일링
         scaler = StandardScaler()

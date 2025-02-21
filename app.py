@@ -11,10 +11,10 @@ import matplotlib.font_manager as fm
 import matplotlib as mpl
 import platform
 
-from src.config.settings import GROQ_API_KEY, MODEL_NAME, TEMPERATURE
+from src.config.settings import GROQ_API_KEY, MODEL_NAME, TEMPERATURE, FONT_FAMILY
 from src.data.loader import load_data, preprocess_data
 from src.data.schema import load_predefined_schema, suggest_schema_with_llm, parse_schema_text
-from src.analysis.analyzer import analyze_data
+from src.analysis.analyzer import analyze_data, analyze_time_series, analyze_clusters, create_prediction_model
 from src.analysis.visualizer import (
     visualize_data,
     create_analysis_plan,
@@ -76,20 +76,9 @@ html, body, [class*="css"] {
 # matplotlib 한글 폰트 설정
 import matplotlib as plt
 
-# 운영체제별 기본 한글 폰트 설정
-if platform.system() == 'Windows':
-    font_path = 'C:/Windows/Fonts/malgun.ttf'
-elif platform.system() == 'Darwin':  # macOS
-    font_path = '/System/Library/Fonts/AppleGothic.ttf'
-else:  # Linux
-    font_path = '/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
-
-# 폰트 추가 및 설정
-if os.path.exists(font_path):
-    font_name = fm.FontProperties(fname=font_path).get_name()
-    mpl.rcParams['font.family'] = font_name
-    plt.rcParams['font.family'] = font_name
-    plt.rcParams['axes.unicode_minus'] = False
+# matplotlib 폰트 설정
+plt.rcParams['font.family'] = FONT_FAMILY
+plt.rcParams['axes.unicode_minus'] = False
 
 # 세션 상태 초기화
 if 'data' not in st.session_state:
